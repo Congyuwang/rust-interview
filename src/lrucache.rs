@@ -121,8 +121,9 @@ mod tests {
         assert_eq!(cache.get(&2), Some(&200));
 
         // Adding new key should evict least recent (1)
+        // After get(&1) and get(&2), recency is: 2(mru), 1(lru)
         cache.put(3, 300);
-        assert_eq!(cache.get(&1), None); // Evicted
+        assert_eq!(cache.get(&1), None); // Evicted - 1 is LRU after get operations
         assert_eq!(cache.get(&2), Some(&200));
         assert_eq!(cache.get(&3), Some(&300));
     }
@@ -206,6 +207,68 @@ mod tests {
 
         cache.put(2, 200);
         assert_eq!(cache.get(&2), None);
+    }
+
+    #[test]
+    fn test_repeated_get_same_key() {
+        let mut cache = LRUCache::with_capacity(3);
+
+        cache.put(1, 100);
+        cache.put(2, 200);
+        cache.put(3, 300);
+
+        // Multiple gets on the same key
+        cache.get(&1);
+        cache.get(&1);
+        cache.get(&1);
+
+        // Add new item - should evict least recent (2)
+        cache.put(4, 400);
+
+        assert_eq!(cache.get(&1), Some(&100)); // Still present
+        assert_eq!(cache.get(&2), None); // Evicted
+        assert_eq!(cache.get(&3), Some(&300));
+        assert_eq!(cache.get(&4), Some(&400));
+    }
+
+    #[test]
+    fn test_single_item_cache_get_update() {
+        let mut cache = LRUCache::with_capacity(1);
+
+        cache.put(1, 100);
+        assert_eq!(cache.get(&1), Some(&100));
+
+        // Get again - should still work and keep 1 as most recent
+        assert_eq!(cache.get(&1), Some(&100));
+
+        // Update - should keep the same item
+        cache.put(1, 150);
+        assert_eq!(cache.get(&1), Some(&150));
+
+        // Add new item - should evict 1
+        cache.put(2, 200);
+        assert_eq!(cache.get(&1), None);
+        assert_eq!(cache.get(&2), Some(&200));
+    }
+
+    #[test]
+    fn test_get_nonexistent_key_does_not_affect_eviction() {
+        let mut cache = LRUCache::with_capacity(3);
+
+        cache.put(1, 100);
+        cache.put(2, 200);
+        cache.put(3, 300);
+
+        // Get non-existent key - should not affect recency
+        assert_eq!(cache.get(&4), None);
+
+        // Add new item - should evict least recent (1)
+        cache.put(4, 400);
+
+        assert_eq!(cache.get(&1), None); // Evicted
+        assert_eq!(cache.get(&2), Some(&200));
+        assert_eq!(cache.get(&3), Some(&300));
+        assert_eq!(cache.get(&4), Some(&400));
     }
 
     #[test]

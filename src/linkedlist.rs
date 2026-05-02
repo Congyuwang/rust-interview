@@ -250,4 +250,108 @@ mod tests {
         assert_eq!(list.pop_back(), Some("hello".to_string()));
         assert_eq!(list.pop_back(), Some("world".to_string()));
     }
+
+    #[test]
+    fn test_len_after_mixed_operations() {
+        let mut list = ArrayLinkedList::with_capacity(5);
+
+        assert_eq!(list.len(), 0);
+
+        list.push_front(1).unwrap();
+        list.push_front(2).unwrap();
+        list.push_front(3).unwrap();
+        assert_eq!(list.len(), 3);
+
+        // Remove middle element
+        let idx2 = list.push_front(4).unwrap();
+        assert_eq!(list.len(), 4);
+        list.remove(idx2);
+        assert_eq!(list.len(), 3);
+
+        // Pop all
+        list.pop_back();
+        list.pop_back();
+        list.pop_back();
+        assert_eq!(list.len(), 0);
+
+        // Repopulate
+        list.push_front(10).unwrap();
+        list.push_front(20).unwrap();
+        assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn test_free_list_lifo_order() {
+        let mut list = ArrayLinkedList::with_capacity(5);
+
+        let idx1 = list.push_front(1).unwrap();
+        let idx2 = list.push_front(2).unwrap();
+        let idx3 = list.push_front(3).unwrap();
+
+        // Free slots in LIFO order: remove idx3, then idx2, then idx1
+        list.remove(idx3); // Frees index 3
+        list.remove(idx2); // Frees index 2
+        list.remove(idx1); // Frees index 1
+
+        // Push should reuse indices in LIFO order: 1, 2, 3
+        assert_eq!(list.push_front(10).unwrap(), idx1); // Last freed = first reused
+        assert_eq!(list.push_front(20).unwrap(), idx2);
+        assert_eq!(list.push_front(30).unwrap(), idx3);
+    }
+
+    #[test]
+    fn test_is_empty_after_operations() {
+        let mut list = ArrayLinkedList::with_capacity(3);
+
+        assert!(list.is_empty());
+
+        list.push_front(1).unwrap();
+        assert!(!list.is_empty());
+
+        list.pop_back();
+        assert!(list.is_empty());
+
+        // Multiple push/pop
+        let idx1 = list.push_front(1).unwrap();
+        let idx2 = list.push_front(2).unwrap();
+        assert!(!list.is_empty());
+
+        list.remove(idx2); // Remove head
+        assert!(!list.is_empty());
+
+        list.remove(idx1); // Remove remaining
+        assert!(list.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_sequential_removes() {
+        let mut list = ArrayLinkedList::with_capacity(5);
+
+        let idx1 = list.push_front(1).unwrap();
+        let idx2 = list.push_front(2).unwrap();
+        let idx3 = list.push_front(3).unwrap();
+        let idx4 = list.push_front(4).unwrap();
+        let idx5 = list.push_front(5).unwrap();
+
+        // Remove all except one, then repopulate
+        list.remove(idx2);
+        list.remove(idx4);
+        list.remove(idx1);
+        list.remove(idx5);
+        assert_eq!(list.len(), 1);
+
+        // Remove the last one
+        list.remove(idx3);
+        assert!(list.is_empty());
+        assert_eq!(list.len(), 0);
+
+        // Repopulate
+        let _ = list.push_front(100).unwrap();
+        let _ = list.push_front(200).unwrap();
+        let _ = list.push_front(300).unwrap();
+        assert_eq!(list.len(), 3);
+        assert_eq!(list.pop_back(), Some(100));
+        assert_eq!(list.pop_back(), Some(200));
+        assert_eq!(list.pop_back(), Some(300));
+    }
 }
